@@ -1,12 +1,14 @@
-# Welcome to your CDK Go project!
+# Lambda-Vpc-RDS configuration
 
-This is a blank project for CDK development with Go.
+Configure your Lambda function to access Amazon RDS database in VPC using AWS CDK and Golang.
 
-The `cdk.json` file tells the CDK toolkit how to execute your app.
+## Prerequisites
 
-## Useful commands
+* Golang
+* aws cdk
+* AWS profile
 
- * `cdk deploy`      deploy this stack to your default AWS account/region
- * `cdk diff`        compare deployed stack with current state
- * `cdk synth`       emits the synthesized CloudFormation template
- * `go test`         run unit tests
+## Commands:
+
+* Deploy: `cdk deploy --all`
+* Destroy: `cdk destroy --all`

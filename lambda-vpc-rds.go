@@ -2,41 +2,33 @@ package main
 
 import (
 	"github.com/aws/aws-cdk-go/awscdk/v2"
-	// "github.com/aws/aws-cdk-go/awscdk/v2/awssqs"
-	"github.com/aws/constructs-go/constructs/v10"
+	"lambda-vpc-rds/stacks"
+
 	"github.com/aws/jsii-runtime-go"
 )
-
-type LambdaVpcRdsStackProps struct {
-	awscdk.StackProps
-}
-
-func NewLambdaVpcRdsStack(scope constructs.Construct, id string, props *LambdaVpcRdsStackProps) awscdk.Stack {
-	var sprops awscdk.StackProps
-	if props != nil {
-		sprops = props.StackProps
-	}
-	stack := awscdk.NewStack(scope, &id, &sprops)
-
-	// The code that defines your stack goes here
-
-	// example resource
-	// queue := awssqs.NewQueue(stack, jsii.String("LambdaVpcRdsQueue"), &awssqs.QueueProps{
-	// 	VisibilityTimeout: awscdk.Duration_Seconds(jsii.Number(300)),
-	// })
-
-	return stack
-}
 
 func main() {
 	defer jsii.Close()
 
 	app := awscdk.NewApp(nil)
 
-	NewLambdaVpcRdsStack(app, "LambdaVpcRdsStack", &LambdaVpcRdsStackProps{
-		awscdk.StackProps{
+	network := stacks.Network(app, "network-stack", awscdk.StackProps{
+		Env: env(),
+	})
+
+	storage := stacks.Storage(app, "storage-stack", &stacks.StorageStackProperties{
+		StackProps: awscdk.StackProps{
 			Env: env(),
 		},
+		NetworkStackData: network,
+	})
+
+	stacks.Application(app, "application-stack", &stacks.ApplicationStackProperties{
+		StackProps: awscdk.StackProps{
+			Env: env(),
+		},
+		NetworkStackData: network,
+		StorageStackData: storage,
 	})
 
 	app.Synth(nil)
