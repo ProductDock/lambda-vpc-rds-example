@@ -49,8 +49,6 @@ func Network(scope constructs.Construct, id string, props awscdk.StackProps) Net
 		SecurityGroupName: jsii.String("lambda-sg"),
 	})
 
-	// https://repost.aws/knowledge-center/lambda-secret-vpc
-
 	vpc.AddInterfaceEndpoint(jsii.String("secret-manager-endpoint"), &awsec2.InterfaceVpcEndpointOptions{
 		Service:           awsec2.InterfaceVpcEndpointAwsService_SECRETS_MANAGER(),
 		PrivateDnsEnabled: jsii.Bool(true),

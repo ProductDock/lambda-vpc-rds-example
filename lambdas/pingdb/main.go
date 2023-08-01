@@ -21,6 +21,10 @@ type credentials struct {
 	DbName   string `json:"dbname"`
 }
 
+// HandleRequest will verify that the connection to the database is still alive,
+// establishing a connection if necessary. Connection parameters are provided via environment variables and from
+// SecretsManager. Credentials from SecretsManager are cached using github.com/aws/aws-secretsmanager-caching-go/secretcache
+// package.
 func HandleRequest() (string, error) {
 
 	host := os.Getenv("DB_HOST")
