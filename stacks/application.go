@@ -22,13 +22,14 @@ func Application(scope constructs.Construct, id string, props *ApplicationStackP
 	stack.AddDependency(props.NetworkStackData.Stack, jsii.String("Need Network stack to be created"))
 	stack.AddDependency(props.StorageStackData.Stack, jsii.String("Need Storage stack to be created"))
 
-	role := createLambdaRole(stack)
+	role := createPingdbLambdaRole(stack)
 
-	lambdaToRdsSg := createLambdaToRDSSecurityGroup(stack, props.NetworkStackData.Vpc)
-
-	lambdaVpcEndpointSg := props.NetworkStackData.LambdaVpcEndpointSg
-	secretsManagerVpcEndpointSg := props.NetworkStackData.SecretsManagerVpcEndpointSg
-	allowLambdaAccessToSecretsManager(secretsManagerVpcEndpointSg, lambdaVpcEndpointSg)
+	lambdaToRdsSg := createSecurityGroup(stack, props.NetworkStackData.Vpc, "lambda-to-rds")
+	lambdaToRdsSg.AddEgressRule(
+		awsec2.Peer_Ipv4(jsii.String(CIDR)),
+		awsec2.Port_Tcp(jsii.Number(5432)),
+		jsii.String("Allow connections to the database (RDS)."),
+		jsii.Bool(false))
 
 	lambda := awscdklambdagoalpha.NewGoFunction(stack, jsii.String("ping-db-lambda"), &awscdklambdagoalpha.GoFunctionProps{
 		Runtime:      awslambda.Runtime_PROVIDED_AL2(),
@@ -48,15 +49,15 @@ func Application(scope constructs.Construct, id string, props *ApplicationStackP
 		VpcSubnets: &awsec2.SubnetSelection{
 			SubnetType: awsec2.SubnetType_PRIVATE_ISOLATED,
 		},
-		SecurityGroups: &[]awsec2.ISecurityGroup{lambdaVpcEndpointSg, lambdaToRdsSg},
+		SecurityGroups: &[]awsec2.ISecurityGroup{props.NetworkStackData.LambdaSecretsManagerSg, lambdaToRdsSg},
 	})
 
-	exposeLambdaEndpoint(stack, lambda)
+	exposePingdbLambdaEndpoint(stack, lambda)
 
 	return stack
 }
 
-func createLambdaRole(stack awscdk.Stack) awsiam.Role {
+func createPingdbLambdaRole(stack awscdk.Stack) awsiam.Role {
 	return awsiam.NewRole(stack, jsii.String("pingdb-lambda-role"), &awsiam.RoleProps{
 		AssumedBy: awsiam.NewServicePrincipal(jsii.String("lambda.amazonaws.com"), &awsiam.ServicePrincipalOpts{}),
 		ManagedPolicies: &[]awsiam.IManagedPolicy{
@@ -67,36 +68,7 @@ func createLambdaRole(stack awscdk.Stack) awsiam.Role {
 	})
 }
 
-func allowLambdaAccessToSecretsManager(secretsManagerVpcEndpointSg awsec2.SecurityGroup, lambdaVpcEndpointSg awsec2.SecurityGroup) {
-
-	secretsManagerVpcEndpointSg.AddIngressRule(
-		lambdaVpcEndpointSg,
-		awsec2.Port_Tcp(jsii.Number(443)),
-		jsii.String("Allow connection from lambda security group."),
-		jsii.Bool(false))
-
-	lambdaVpcEndpointSg.AddEgressRule(
-		secretsManagerVpcEndpointSg,
-		awsec2.Port_Tcp(jsii.Number(443)),
-		jsii.String("Allow outbound traffic to vpc endpoint."),
-		jsii.Bool(false))
-}
-func createLambdaToRDSSecurityGroup(stack awscdk.Stack, vpc awsec2.Vpc) awsec2.SecurityGroup {
-	lambdaToRdsSg := awsec2.NewSecurityGroup(stack, jsii.String("lambda-rds-sg"), &awsec2.SecurityGroupProps{
-		Vpc:               vpc,
-		AllowAllOutbound:  jsii.Bool(false),
-		SecurityGroupName: jsii.String("lambda-rds-sg"),
-	})
-
-	lambdaToRdsSg.AddEgressRule(
-		awsec2.Peer_Ipv4(jsii.String(CIDR)),
-		awsec2.Port_Tcp(jsii.Number(5432)),
-		jsii.String("Allow connection to the database."),
-		jsii.Bool(false))
-	return lambdaToRdsSg
-}
-
-func exposeLambdaEndpoint(stack awscdk.Stack, function awslambda.Function) {
+func exposePingdbLambdaEndpoint(stack awscdk.Stack, function awslambda.Function) {
 	lambdaUrl := awslambda.NewFunctionUrl(stack, jsii.String("pingdb-function-url"), &awslambda.FunctionUrlProps{
 		Function: function,
 		AuthType: awslambda.FunctionUrlAuthType_NONE,

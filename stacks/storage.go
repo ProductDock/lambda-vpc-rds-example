@@ -24,7 +24,13 @@ func Storage(scope constructs.Construct, id string, props *StorageStackPropertie
 
 	stack.AddDependency(props.NetworkStackData.Stack, jsii.String("Need Network stack to be created"))
 
-	sg := createDBSecurityGroup(stack, props.NetworkStackData.Vpc)
+	dbSg := createSecurityGroup(stack, props.NetworkStackData.Vpc, "rds")
+	dbSg.AddIngressRule(
+		awsec2.Peer_Ipv4(jsii.String(CIDR)),
+		awsec2.Port_Tcp(jsii.Number(5432)),
+		jsii.String("Allow connections to the database."),
+		jsii.Bool(false),
+	)
 
 	cred := awsrds.Credentials_FromGeneratedSecret(jsii.String("postgres"), &awsrds.CredentialsBaseOptions{
 		SecretName:        jsii.String("postgres-secret"),
@@ -52,25 +58,9 @@ func Storage(scope constructs.Construct, id string, props *StorageStackPropertie
 		VpcSubnets: &awsec2.SubnetSelection{
 			SubnetType: awsec2.SubnetType_PRIVATE_ISOLATED,
 		},
-		SecurityGroups: &[]awsec2.ISecurityGroup{sg},
+		SecurityGroups: &[]awsec2.ISecurityGroup{dbSg},
 		RemovalPolicy:  awscdk.RemovalPolicy_DESTROY,
 	})
 
 	return StorageStackExport{Stack: stack, TutorialDB: db, TutorialDBCredentials: cred}
-}
-
-func createDBSecurityGroup(stack awscdk.Stack, vpc awsec2.Vpc) awsec2.SecurityGroup {
-	sg := awsec2.NewSecurityGroup(stack, jsii.String("rds-sg"), &awsec2.SecurityGroupProps{
-		Vpc:               vpc,
-		AllowAllOutbound:  jsii.Bool(false),
-		SecurityGroupName: jsii.String("rds-sg"),
-	})
-	sg.AddIngressRule(
-		awsec2.Peer_Ipv4(jsii.String(CIDR)),
-		awsec2.Port_Tcp(jsii.Number(5432)),
-		jsii.String("Allow connections to the database."),
-		jsii.Bool(false),
-	)
-
-	return sg
 }
